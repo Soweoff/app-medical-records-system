@@ -2,8 +2,11 @@
 
 namespace App\Models;
 
+use App\Models\ClinicalCondition;
 use Core\Database\ActiveRecord\BelongsTo;
+use Core\Database\ActiveRecord\BelongsToMany;
 use Core\Database\ActiveRecord\Model;
+use Core\Database\Database;
 use Lib\Validations;
 
 /**
@@ -45,6 +48,49 @@ class MedicalRecord extends Model
     public function doctor(): BelongsTo
     {
         return $this->belongsTo(Doctor::class, 'doctor_id');
+    }
+
+    public function clinicalConditions(): BelongsToMany
+    {
+        return $this->belongsToMany(ClinicalCondition::class, 'clinical_condition_medical_records', 'medical_record_id', 'clinical_condition_id');
+    }
+
+    public function clinicalConditionIds(): array
+    {
+        if (empty($this->id)) {
+            return [];
+        }
+
+        $conditions = $this->clinicalConditions()->get();
+        return array_map(fn(ClinicalCondition $condition) => $condition->id, $conditions);
+    }
+
+    public function syncClinicalConditions(array $conditionIds): void
+    {
+        $pdo = Database::getDatabaseConn();
+        $pdo->beginTransaction();
+
+        try {
+            $delete = $pdo->prepare('DELETE FROM clinical_condition_medical_records WHERE medical_record_id = :medical_record_id');
+            $delete->execute(['medical_record_id' => $this->id]);
+
+            $insert = $pdo->prepare('INSERT INTO clinical_condition_medical_records (medical_record_id, clinical_condition_id) VALUES (:medical_record_id, :clinical_condition_id)');
+            foreach ($conditionIds as $conditionId) {
+                $conditionId = (int) $conditionId;
+                if ($conditionId <= 0) {
+                    continue;
+                }
+                $insert->execute([
+                    'medical_record_id' => $this->id,
+                    'clinical_condition_id' => $conditionId,
+                ]);
+            }
+
+            $pdo->commit();
+        } catch (\Throwable $exception) {
+            $pdo->rollBack();
+            throw $exception;
+        }
     }
 
     /**

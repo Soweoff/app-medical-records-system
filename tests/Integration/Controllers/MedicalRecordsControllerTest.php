@@ -3,6 +3,7 @@
 namespace Tests\Integration\Controllers;
 
 use App\Models\Admin;
+use App\Models\ClinicalCondition;
 use App\Models\Doctor;
 use App\Models\MedicalRecord;
 use App\Models\Patient;
@@ -16,6 +17,9 @@ class MedicalRecordsControllerTest extends ControllerTestCase
     private Patient $patient;
     private User $adminUser;
     private Admin $admin;
+    private ClinicalCondition $hypertensionCondition;
+    private ClinicalCondition $diabetesCondition;
+    private ClinicalCondition $asthmaCondition;
 
     public function setUp(): void
     {
@@ -67,6 +71,15 @@ class MedicalRecordsControllerTest extends ControllerTestCase
             'phone' => '11888888888',
         ]);
         $this->admin->save();
+
+        $this->hypertensionCondition = new ClinicalCondition(['name' => 'Hipertensão']);
+        $this->hypertensionCondition->save();
+
+        $this->diabetesCondition = new ClinicalCondition(['name' => 'Diabetes']);
+        $this->diabetesCondition->save();
+
+        $this->asthmaCondition = new ClinicalCondition(['name' => 'Asma']);
+        $this->asthmaCondition->save();
     }
 
     private function loginAs(User $user): void
@@ -248,6 +261,52 @@ class MedicalRecordsControllerTest extends ControllerTestCase
         $response = $this->get('new', 'App\Controllers\MedicalRecordsController');
 
         $this->assertStringContainsString('Novo Prontuário', $response);
+    }
+
+    public function test_new_form_shows_clinical_conditions(): void
+    {
+        $this->loginAs($this->doctorUser);
+
+        $response = $this->get('new', 'App\Controllers\MedicalRecordsController');
+
+        $this->assertStringContainsString('Hipertensão', $response);
+        $this->assertStringContainsString('Diabetes', $response);
+        $this->assertStringContainsString('Asma', $response);
+    }
+
+    public function test_create_saves_selected_clinical_conditions(): void
+    {
+        $this->loginAs($this->doctorUser);
+
+        $response = $this->post('create', 'App\Controllers\MedicalRecordsController', [
+            'patient_id' => $this->patient->id,
+            'record_date' => '2026-05-17',
+            'diagnosis' => 'Diabetes tipo 2',
+            'clinical_condition_ids' => [
+                $this->diabetesCondition->id,
+                $this->asthmaCondition->id,
+            ],
+        ]);
+
+        $this->assertStringContainsString('Location:', $response);
+
+        $records = MedicalRecord::findByDoctorId($this->doctor->id);
+        $this->assertCount(1, $records);
+        $record = $records[0];
+
+        $this->assertSame([ $this->diabetesCondition->id, $this->asthmaCondition->id ], $record->clinicalConditionIds());
+    }
+
+    public function test_show_displays_clinical_condition_tags(): void
+    {
+        $this->loginAs($this->doctorUser);
+        $record = $this->createRecord('Paciente com múltiplas condições');
+        $record->syncClinicalConditions([$this->hypertensionCondition->id, $this->diabetesCondition->id]);
+
+        $response = $this->get('show', 'App\Controllers\MedicalRecordsController', ['id' => $record->id]);
+
+        $this->assertStringContainsString('Hipertensão', $response);
+        $this->assertStringContainsString('Diabetes', $response);
     }
 
     public function test_new_redirects_for_patient(): void

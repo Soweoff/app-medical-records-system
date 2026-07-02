@@ -108,6 +108,29 @@ $doctorUser = $doctor ? $doctor->user()->get() : null;
                 <?php endif; ?>
 
                 <div class="col-12">
+                    <div class="p-3 border rounded bg-light h-100">
+
+                        <small class="text-muted d-block mb-1">
+                            Condições clínicas
+                        </small>
+
+                        <?php $clinicalConditions = $medicalRecord->clinicalConditions()->get(); ?>
+                        <?php if (count($clinicalConditions) > 0): ?>
+                            <div>
+                                <?php foreach ($clinicalConditions as $condition): ?>
+                                    <span class="badge bg-secondary me-1 mb-1">
+                                        <?= htmlspecialchars($condition->name) ?>
+                                    </span>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php else: ?>
+                            <p class="mb-0 text-muted">Nenhuma condição clínica associada.</p>
+                        <?php endif; ?>
+
+                    </div>
+                </div>
+
+                <div class="col-12">
                     <div class="p-3 border rounded">
 
                         <small class="text-muted d-block mb-2">

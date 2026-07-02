@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Models\ClinicalCondition;
 use App\Models\Doctor;
 use App\Models\MedicalRecord;
 use App\Models\Patient;
@@ -76,9 +77,10 @@ class MedicalRecordsController extends Controller
     {
         $medicalRecord = new MedicalRecord();
         $patientsWithUser = Patient::allWithUser();
+        $clinicalConditions = ClinicalCondition::all();
         $title         = 'Novo Prontuário';
 
-        $this->render('medical_record/new', compact('title', 'medicalRecord', 'patientsWithUser'));
+        $this->render('medical_record/new', compact('title', 'medicalRecord', 'patientsWithUser', 'clinicalConditions'));
     }
 
     public function create(Request $request): void
@@ -96,14 +98,25 @@ class MedicalRecordsController extends Controller
         ]);
 
         if ($medicalRecord->save()) {
+            $clinicalConditionIds = $request->getParam('clinical_condition_ids') ?? [];
+            if (!is_array($clinicalConditionIds)) {
+                $clinicalConditionIds = $clinicalConditionIds ? [$clinicalConditionIds] : [];
+            }
+            $medicalRecord->syncClinicalConditions($clinicalConditionIds);
+
             FlashMessage::success('Prontuário criado com sucesso!');
             $this->redirectTo(route('medical_records.show', ['id' => $medicalRecord->id]));
         } else {
             // Validação falhou — reexibe o formulário com os erros
             FlashMessage::danger('Erro ao criar prontuário. Verifique os campos.');
             $patientsWithUser = Patient::allWithUser();
+            $clinicalConditions = ClinicalCondition::all();
+            $selectedClinicalConditionIds = $request->getParam('clinical_condition_ids') ?? [];
+            if (!is_array($selectedClinicalConditionIds)) {
+                $selectedClinicalConditionIds = $selectedClinicalConditionIds ? [$selectedClinicalConditionIds] : [];
+            }
             $title = 'Novo Prontuário';
-            $this->render('medical_record/new', compact('title', 'medicalRecord', 'patientsWithUser'));
+            $this->render('medical_record/new', compact('title', 'medicalRecord', 'patientsWithUser', 'clinicalConditions', 'selectedClinicalConditionIds'));
         }
     }
 
@@ -121,9 +134,10 @@ class MedicalRecordsController extends Controller
         }
 
         $patientsWithUser = Patient::allWithUser();
+        $clinicalConditions = ClinicalCondition::all();
         $title = 'Editar Prontuário #' . $medicalRecord->id;
 
-        $this->render('medical_record/edit', compact('title', 'medicalRecord', 'patientsWithUser'));
+        $this->render('medical_record/edit', compact('title', 'medicalRecord', 'patientsWithUser', 'clinicalConditions'));
     }
 
     public function update(Request $request): void
@@ -154,12 +168,24 @@ class MedicalRecordsController extends Controller
 
         if (!$medicalRecord->isValid()) {
             $patientsWithUser = Patient::allWithUser();
+            $clinicalConditions = ClinicalCondition::all();
+            $selectedClinicalConditionIds = $request->getParam('clinical_condition_ids') ?? [];
+            if (!is_array($selectedClinicalConditionIds)) {
+                $selectedClinicalConditionIds = $selectedClinicalConditionIds ? [$selectedClinicalConditionIds] : [];
+            }
             $title = 'Editar Prontuário #' . $medicalRecord->id;
-            $this->render('medical_record/edit', compact('title', 'medicalRecord', 'patientsWithUser'));
+            $this->render('medical_record/edit', compact('title', 'medicalRecord', 'patientsWithUser', 'clinicalConditions', 'selectedClinicalConditionIds'));
             return;
         }
 
         $medicalRecord->update($data);
+
+        $clinicalConditionIds = $request->getParam('clinical_condition_ids') ?? [];
+        if (!is_array($clinicalConditionIds)) {
+            $clinicalConditionIds = $clinicalConditionIds ? [$clinicalConditionIds] : [];
+        }
+        $medicalRecord->syncClinicalConditions($clinicalConditionIds);
+
         FlashMessage::success('Prontuário atualizado com sucesso!');
         $this->redirectTo(route('medical_records.show', ['id' => $medicalRecord->id]));
     }
