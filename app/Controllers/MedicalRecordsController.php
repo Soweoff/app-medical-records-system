@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Models\ClinicalCondition;
 use App\Models\Doctor;
 use App\Models\ClinicalCondition;
 use Core\Database\Database;

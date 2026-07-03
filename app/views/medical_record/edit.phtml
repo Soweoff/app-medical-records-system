@@ -146,6 +146,33 @@ $selectedConditions = array_map(
                     <div class="col-12">
 
                         <label class="form-label fw-semibold">
+                            Condições clínicas
+                        </label>
+
+                        <select
+                            name="clinical_condition_ids[]"
+                            class="form-select"
+                            multiple
+                            size="3"
+                        >
+                            <?php $selectedIds = $selectedClinicalConditionIds ?? $medicalRecord->clinicalConditionIds(); ?>
+                            <?php foreach ($clinicalConditions as $condition): ?>
+                                <option
+                                    value="<?= $condition->id ?>"
+                                    <?= in_array($condition->id, $selectedIds, true) ? 'selected' : '' ?>
+                                >
+                                    <?= htmlspecialchars($condition->name) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+
+                        <div class="form-text">
+                            Selecione uma ou mais condições clínicas relacionadas ao atendimento.
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">
                             Prescrição
                         </label>
 
