@@ -31,11 +31,11 @@ class BelongsToMany
         $attributes = rtrim($attributes, ', ');
 
         $sql = <<<SQL
-            SELECT 
+            SELECT
                 {$attributes}
-            FROM 
+            FROM
                 {$fromTable}, {$toTable}, {$this->pivot_table}
-            WHERE 
+            WHERE
                 {$toTable}.id = {$this->pivot_table}.{$this->to_foreign_key} AND
                 {$fromTable}.id = {$this->pivot_table}.{$this->from_foreign_key} AND
                 {$fromTable}.id = :id
@@ -62,11 +62,11 @@ class BelongsToMany
         $toTable = $this->related::table();
 
         $sql = <<<SQL
-        SELECT 
+        SELECT
             count({$toTable}.id) as total
-        FROM 
+        FROM
             {$fromTable}, {$toTable}, {$this->pivot_table}
-        WHERE 
+        WHERE
             {$toTable}.id = {$this->pivot_table}.{$this->to_foreign_key} AND
             {$fromTable}.id = {$this->pivot_table}.{$this->from_foreign_key} AND
             {$fromTable}.id = :id

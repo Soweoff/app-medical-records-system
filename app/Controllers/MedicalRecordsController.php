@@ -3,6 +3,8 @@
 namespace App\Controllers;
 
 use App\Models\Doctor;
+use App\Models\ClinicalCondition;
+use Core\Database\Database;
 use App\Models\MedicalRecord;
 use App\Models\Patient;
 use Core\Http\Controllers\Controller;
@@ -72,40 +74,87 @@ class MedicalRecordsController extends Controller
         $this->render('medical_record/show', compact('title', 'medicalRecord', 'patient', 'doctor'));
     }
 
-    public function new(): void
+        public function new(): void
     {
         $medicalRecord = new MedicalRecord();
         $patientsWithUser = Patient::allWithUser();
-        $title         = 'Novo Prontuário';
+        $clinicalConditions = ClinicalCondition::all();
 
-        $this->render('medical_record/new', compact('title', 'medicalRecord', 'patientsWithUser'));
-    }
+
+
+        $title = 'Novo Prontuário';
+
+        $this->render(
+            'medical_record/new',
+            compact(
+                'title',
+                'medicalRecord',
+                'patientsWithUser',
+                'clinicalConditions'
+            )
+        );
+}
 
     public function create(Request $request): void
-    {
-        $doctor = $this->currentUser()->doctor();
+  {
+      $doctor = $this->currentUser()->doctor();
 
-        $medicalRecord = new MedicalRecord([
-            'patient_id'    => $request->getParam('patient_id'),
-            'doctor_id'     => $doctor->id,  // sempre o médico logado
-            'appointment_id' => $request->getParam('appointment_id') ?: null,
-            'record_date'   => $request->getParam('record_date'),
-            'diagnosis'     => $request->getParam('diagnosis'),
-            'prescription'  => $request->getParam('prescription') ?: null,
-            'notes'         => $request->getParam('notes') ?: null,
-        ]);
+      if (!$doctor) {
+          FlashMessage::danger('Médico não encontrado.');
+          $this->redirectTo(route('medical_records.index'));
+          return;
+      }
 
-        if ($medicalRecord->save()) {
-            FlashMessage::success('Prontuário criado com sucesso!');
-            $this->redirectTo(route('medical_records.show', ['id' => $medicalRecord->id]));
-        } else {
-            // Validação falhou — reexibe o formulário com os erros
-            FlashMessage::danger('Erro ao criar prontuário. Verifique os campos.');
-            $patientsWithUser = Patient::allWithUser();
-            $title = 'Novo Prontuário';
-            $this->render('medical_record/new', compact('title', 'medicalRecord', 'patientsWithUser'));
-        }
-    }
+      $medicalRecord = new MedicalRecord([
+          'patient_id'     => $request->getParam('patient_id'),
+          'doctor_id'      => $doctor->id,
+          'appointment_id' => $request->getParam('appointment_id') ?: null,
+          'record_date'    => $request->getParam('record_date'),
+          'diagnosis'      => $request->getParam('diagnosis'),
+          'prescription'   => $request->getParam('prescription') ?: null,
+          'notes'          => $request->getParam('notes') ?: null,
+      ]);
+
+      if (!$medicalRecord->save()) {
+          FlashMessage::danger('Erro ao criar prontuário. Verifique os campos.');
+
+          $patientsWithUser = Patient::allWithUser();
+          $clinicalConditions = ClinicalCondition::all();
+          $title = 'Novo Prontuário';
+
+          $this->render(
+              'medical_record/new',
+              compact(
+                  'title',
+                  'medicalRecord',
+                  'patientsWithUser',
+                  'clinicalConditions'
+              )
+          );
+          return;
+      }
+
+      $clinicalConditions = $request->getParam('clinical_conditions') ?? [];
+
+      $pdo = Database::getDatabaseConn();
+
+      $stmt = $pdo->prepare("
+          INSERT INTO clinical_condition_medical_records
+          (medical_record_id, clinical_condition_id)
+          VALUES
+          (:medical_record_id, :clinical_condition_id)
+      ");
+
+      foreach ($clinicalConditions as $conditionId) {
+          $stmt->execute([
+              ':medical_record_id' => $medicalRecord->id,
+              ':clinical_condition_id' => $conditionId
+          ]);
+      }
+
+      FlashMessage::success('Prontuário criado com sucesso!');
+      $this->redirectTo(route('medical_records.show', ['id' => $medicalRecord->id]));
+}
 
     public function edit(Request $request): void
     {
@@ -120,11 +169,20 @@ class MedicalRecordsController extends Controller
             return;
         }
 
-        $patientsWithUser = Patient::allWithUser();
-        $title = 'Editar Prontuário #' . $medicalRecord->id;
+          $title = 'Editar Prontuário #' . $medicalRecord->id;
+          $patientsWithUser = Patient::allWithUser();
+          $clinicalConditions = ClinicalCondition::all();
 
-        $this->render('medical_record/edit', compact('title', 'medicalRecord', 'patientsWithUser'));
-    }
+          $this->render(
+              'medical_record/edit',
+              compact(
+                  'title',
+                  'medicalRecord',
+                  'patientsWithUser',
+                  'clinicalConditions'
+              )
+          );
+}
 
     public function update(Request $request): void
     {
@@ -153,13 +211,51 @@ class MedicalRecordsController extends Controller
         }
 
         if (!$medicalRecord->isValid()) {
-            $patientsWithUser = Patient::allWithUser();
-            $title = 'Editar Prontuário #' . $medicalRecord->id;
-            $this->render('medical_record/edit', compact('title', 'medicalRecord', 'patientsWithUser'));
+          $patientsWithUser = Patient::allWithUser();
+          $clinicalConditions = ClinicalCondition::all();
+          $title = 'Editar Prontuário #' . $medicalRecord->id;
+
+          $this->render(
+              'medical_record/edit',
+              compact(
+                  'title',
+                  'medicalRecord',
+                  'patientsWithUser',
+                  'clinicalConditions'
+              )
+          );
             return;
         }
 
         $medicalRecord->update($data);
+
+        $pdo = Database::getDatabaseConn();
+
+        $stmt = $pdo->prepare("
+            DELETE FROM clinical_condition_medical_records
+            WHERE medical_record_id = :id
+        ");
+
+        $stmt->execute([
+            ':id' => $medicalRecord->id
+        ]);
+
+        $clinicalConditions = $request->getParam('clinical_conditions') ?? [];
+
+        $stmt = $pdo->prepare("
+            INSERT INTO clinical_condition_medical_records
+            (medical_record_id, clinical_condition_id)
+            VALUES
+            (:medical_record_id, :clinical_condition_id)
+        ");
+
+        foreach ($clinicalConditions as $conditionId) {
+            $stmt->execute([
+                ':medical_record_id' => $medicalRecord->id,
+                ':clinical_condition_id' => $conditionId
+            ]);
+        }
+
         FlashMessage::success('Prontuário atualizado com sucesso!');
         $this->redirectTo(route('medical_records.show', ['id' => $medicalRecord->id]));
     }

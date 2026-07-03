@@ -1,7 +1,15 @@
 <?php
+
 /** @var string $title */
 /** @var App\Models\MedicalRecord $medicalRecord */
 /** @var array<int, array{patient: App\Models\Patient, user: App\Models\User|null}> $patientsWithUser */
+/** @var array<int, App\Models\ClinicalCondition> $clinicalConditions */
+
+$selectedConditions = array_map(
+    fn($condition) => $condition->id,
+    $medicalRecord->clinicalConditions()->get() ?? []
+);
+
 ?>
 
 <div class="container py-4">
@@ -21,6 +29,7 @@
         <div class="card-body">
 
             <form action="<?= route('medical_records.update', ['id' => $medicalRecord->id]) ?>" method="POST">
+
                 <input type="hidden" name="_method" value="PUT">
 
                 <div class="row g-3">
@@ -30,8 +39,13 @@
                             Paciente
                         </label>
 
-                        <select name="patient_id" class="form-select <?= $medicalRecord->errors('patient_id') ? 'is-invalid' : '' ?>">
+                        <select
+                            name="patient_id"
+                            class="form-select <?= $medicalRecord->errors('patient_id') ? 'is-invalid' : '' ?>"
+                        >
+
                             <?php foreach ($patientsWithUser as $item): ?>
+
                                 <?php
                                 $patient = $item['patient'];
                                 $patientUser = $item['user'] ?? null;
@@ -41,17 +55,27 @@
                                     value="<?= $patient->id ?>"
                                     <?= $medicalRecord->patient_id == $patient->id ? 'selected' : '' ?>
                                 >
-                                    <?= htmlspecialchars($patientUser ? $patientUser->name : 'Paciente sem usuário') ?>
+                                    <?= htmlspecialchars(
+                                        $patientUser
+                                            ? $patientUser->name
+                                            : 'Paciente sem usuário'
+                                    ) ?>
                                 </option>
+
                             <?php endforeach; ?>
+
                         </select>
 
                         <?php if ($medicalRecord->errors('patient_id')): ?>
-                            <div class="invalid-feedback"><?= $medicalRecord->errors('patient_id') ?></div>
+                            <div class="invalid-feedback">
+                                <?= $medicalRecord->errors('patient_id') ?>
+                            </div>
                         <?php endif; ?>
+
                     </div>
 
                     <div class="col-md-6">
+
                         <label class="form-label fw-semibold">
                             Data do registro
                         </label>
@@ -64,48 +88,87 @@
                         >
 
                         <?php if ($medicalRecord->errors('record_date')): ?>
-                            <div class="invalid-feedback"><?= $medicalRecord->errors('record_date') ?></div>
+                            <div class="invalid-feedback">
+                                <?= $medicalRecord->errors('record_date') ?>
+                            </div>
                         <?php endif; ?>
+
                     </div>
 
                     <div class="col-12">
+
+                        <label class="form-label fw-semibold">
+                            Condições Clínicas
+                        </label>
+
+                        <?php foreach ($clinicalConditions as $condition): ?>
+
+                            <div class="form-check">
+
+                                <input
+                                    class="form-check-input"
+                                    type="checkbox"
+                                    name="clinical_conditions[]"
+                                    value="<?= $condition->id ?>"
+                                    <?= in_array($condition->id, $selectedConditions) ? 'checked' : '' ?>
+                                >
+
+                                <label class="form-check-label">
+                                    <?= htmlspecialchars($condition->name) ?>
+                                </label>
+
+                            </div>
+
+                        <?php endforeach; ?>
+
+                    </div>
+
+                    <div class="col-12">
+
                         <label class="form-label fw-semibold">
                             Diagnóstico
                         </label>
 
                         <textarea
                             name="diagnosis"
-                            class="form-control <?= $medicalRecord->errors('diagnosis') ? 'is-invalid' : '' ?>"
                             rows="4"
+                            class="form-control <?= $medicalRecord->errors('diagnosis') ? 'is-invalid' : '' ?>"
                         ><?= htmlspecialchars($medicalRecord->diagnosis ?? '') ?></textarea>
 
                         <?php if ($medicalRecord->errors('diagnosis')): ?>
-                            <div class="invalid-feedback"><?= $medicalRecord->errors('diagnosis') ?></div>
+                            <div class="invalid-feedback">
+                                <?= $medicalRecord->errors('diagnosis') ?>
+                            </div>
                         <?php endif; ?>
+
                     </div>
 
                     <div class="col-12">
+
                         <label class="form-label fw-semibold">
                             Prescrição
                         </label>
 
                         <textarea
                             name="prescription"
-                            class="form-control"
                             rows="4"
+                            class="form-control"
                         ><?= htmlspecialchars($medicalRecord->prescription ?? '') ?></textarea>
+
                     </div>
 
                     <div class="col-12">
+
                         <label class="form-label fw-semibold">
                             Observações
                         </label>
 
                         <textarea
                             name="notes"
-                            class="form-control"
                             rows="4"
+                            class="form-control"
                         ><?= htmlspecialchars($medicalRecord->notes ?? '') ?></textarea>
+
                     </div>
 
                     <input
@@ -119,15 +182,23 @@
                 <hr class="my-4">
 
                 <div class="d-flex justify-content-between">
-                    <a href="<?= route('medical_records.show', ['id' => $medicalRecord->id]) ?>" class="btn btn-outline-secondary">
+
+                    <a
+                        href="<?= route('medical_records.show', ['id' => $medicalRecord->id]) ?>"
+                        class="btn btn-outline-secondary"
+                    >
                         <i class="bi bi-arrow-left me-1"></i>
                         Voltar
                     </a>
 
-                    <button type="submit" class="btn btn-primary">
+                    <button
+                        type="submit"
+                        class="btn btn-primary"
+                    >
                         <i class="bi bi-check-circle me-1"></i>
                         Atualizar Prontuário
                     </button>
+
                 </div>
 
             </form>

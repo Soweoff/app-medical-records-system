@@ -1,4 +1,5 @@
 <?php
+/** @var array<App\Models\ClinicalCondition> $clinicalConditions */
 /** @var string $title */
 /** @var App\Models\MedicalRecord $medicalRecord */
 /** @var App\Models\Patient|null $patient */
@@ -106,6 +107,24 @@ $doctorUser = $doctor ? $doctor->user()->get() : null;
                     </div>
 
                 <?php endif; ?>
+
+                  <div class="mt-3">
+
+                <strong>Condições Clínicas:</strong>
+
+                <br><br>
+
+                <?php foreach($medicalRecord->clinicalConditions()->get() as $condition): ?>
+
+                <span class="badge bg-primary me-1">
+
+                    <?= htmlspecialchars($condition->name) ?>
+
+                </span>
+
+                <?php endforeach; ?>
+
+                </div>
 
                 <div class="col-12">
                     <div class="p-3 border rounded">

@@ -1,6 +1,6 @@
 SET foreign_key_checks = 0;
 
-DROP TABLE IF EXISTS medical_records, appointments, admins, doctors, secretaries, patients, users, disease_medical_record, exams, exam_types;
+DROP TABLE IF EXISTS clinical_condition_medical_records, clinical_conditions, medical_records, appointments, admins, doctors, secretaries, patients, users, exams, exam_types;
 
 CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -107,11 +107,11 @@ CREATE TABLE exams (
     id INT AUTO_INCREMENT PRIMARY KEY,
     patient_id INT NOT NULL,
     appointment_id INT NULL,
-    upload_by INT NOT NULL, 
+    upload_by INT NOT NULL,
     exam_type_id INT NOT NULL,
     exam_date DATE NOT NULL,
     is_verified BOOLEAN DEFAULT FALSE,
-    is_verified_by INT NULL, 
+    is_verified_by INT NULL,
     source ENUM('upload', 'whatsapp') NOT NULL DEFAULT 'upload',
     file_path VARCHAR(255) NOT NULL,
     ai_status ENUM('pending', 'processing', 'completed', 'failed') NOT NULL DEFAULT 'pending',
@@ -124,6 +124,24 @@ CREATE TABLE exams (
     CONSTRAINT fk_exams_exam_type FOREIGN KEY (exam_type_id) REFERENCES exam_types(id) ON DELETE RESTRICT,
     CONSTRAINT fk_exams_upload_by FOREIGN KEY (upload_by) REFERENCES users(id) ON DELETE RESTRICT,
     CONSTRAINT fk_exams_verified_by FOREIGN KEY (is_verified_by) REFERENCES doctors(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE clinical_conditions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_clinical_conditions_name (name)
+) ENGINE=InnoDB;
+
+CREATE TABLE clinical_condition_medical_records (
+    medical_record_id INT NOT NULL,
+    clinical_condition_id INT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (medical_record_id, clinical_condition_id),
+    CONSTRAINT fk_ccmr_medical_record FOREIGN KEY (medical_record_id) REFERENCES medical_records(id) ON DELETE CASCADE,
+    CONSTRAINT fk_ccmr_clinical_condition FOREIGN KEY (clinical_condition_id) REFERENCES clinical_conditions(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 SET foreign_key_checks = 1;
